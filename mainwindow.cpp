@@ -54,13 +54,18 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->studentsTable->setCellWidget(row, 4, workshops);
         QObject::connect(workshops, &QPushButton::pressed, this, [=]{
             int editingRow = QObject::sender()->property("row").toInt();
+            QString key = ui->studentsTable->item(editingRow, 1)->text() + "_" + ui->studentsTable->item(editingRow, 2)->text();
+            QList<QString> choice = studentsChoice.values(key);
             for(int i = 0; i < SWUi.table->rowCount(); ++i){
-                SWUi.table->item(i, 0)->setCheckState(static_cast<Qt::CheckState>(0));
                 SWUi.table->item(i, 1)->setText(ui->workshopTable->item(i, 1)->text());
+                if(choice.contains(SWUi.table->item(i, 1)->text())){
+                    SWUi.table->item(i, 0)->setCheckState(static_cast<Qt::CheckState>(2));
+                }else{
+                    SWUi.table->item(i, 0)->setCheckState(static_cast<Qt::CheckState>(0));
+                }
             }
+            SWDialog->setProperty("row", editingRow);
             SWDialog->show();
-            //setText if ok
-            workshops->setText("edited");
         });
         QPushButton* time = new QPushButton(ui->studentsTable);
         time->setProperty("row", row);
@@ -101,6 +106,7 @@ MainWindow::MainWindow(QWidget *parent) :
             }
         });
     });
+
     ui->workshopTable->setSelectionMode(QAbstractItemView::NoSelection);
     QStringList workshopLabels;
     workshopLabels.append("Use");
@@ -169,18 +175,27 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     SWUi.setupUi(SWDialog);
+    SWUi.table->setSelectionMode(QAbstractItemView::NoSelection);
     QStringList SWLabels;
     SWLabels.append("Use");
     SWLabels.append("Name");
     SWUi.table->setColumnCount(SWLabels.size());
     SWUi.table->setHorizontalHeaderLabels(SWLabels);
-        /*
-        QObject::connect(uip.acceptButton, &QPushButton::pressed, this, &MainWindow::accept);
-        QObject::connect(uip.discardButton, &QPushButton::pressed, param, &QDialog::reject);
-        QObject::connect(param, &QDialog::finished, this, &MainWindow::resetDialog);
-        */
     SWDialog->setWindowTitle("Assign/edit students workshops");
     SWDialog->setModal(true);
+    QObject::connect(SWDialog, &QDialog::accepted, this, [=]{
+        int row = SWDialog->property("row").toInt();
+        QString key = ui->studentsTable->item(row, 1)->text() + "_" + ui->studentsTable->item(row, 2)->text();
+        int j = 0;
+        studentsChoice.remove(key);
+        for(int i = 0; i < SWUi.table->rowCount(); ++i){
+            if(SWUi.table->item(i, 0)->checkState() == Qt::Checked){
+                studentsChoice.insertMulti(key, SWUi.table->item(i, 1)->text());
+                ++j;
+            }
+        }
+        dynamic_cast<QPushButton*>(ui->studentsTable->cellWidget(row, 4))->setText("selected " + QString::number(j));
+    });
 
     loadData();
 }
@@ -203,10 +218,10 @@ void MainWindow::loadData(){
     data.endGroup();
     data.beginGroup("students");
         int columnCount = data.beginReadArray("columns");
-        for(int i = 0; i < columnCount; ++i){
-            data.setArrayIndex(i);
-            ui->studentsTable->setColumnWidth(i, data.value("width", 20). toInt());
-        }
+            for(int i = 0; i < columnCount; ++i){
+                data.setArrayIndex(i);
+                ui->studentsTable->setColumnWidth(i, data.value("width", 20). toInt());
+            }
         data.endArray();
         int rowCount = data.beginReadArray("rows");
         for(int i = 0; i < rowCount; ++i){
@@ -217,6 +232,14 @@ void MainWindow::loadData(){
             ui->studentsTable->item(i, 2)->setText(data.value("surname", "not loaded").toString());
             QSpinBox* weight = dynamic_cast<QSpinBox*> ((ui->studentsTable->cellWidget(i, 3)));
             weight->setValue(data.value("weight", 1).toInt());
+            int choiceSize = data.beginReadArray("workshops");
+                QString key = ui->studentsTable->item(i, 1)->text() + "_" + ui->studentsTable->item(i, 2)->text();
+                for(int j = 0; j < choiceSize; ++j){
+                    data.setArrayIndex(j);
+                    studentsChoice.insertMulti(key, data.value("chosen", "not Loaded").toString());
+                }
+                dynamic_cast<QPushButton*>(ui->studentsTable->cellWidget(i, 4))->setText("selected " + QString::number(choiceSize));
+            data.endArray();
             /*
             studentLabels.append("Workshops");
             studentLabels.append("Time");
@@ -270,6 +293,7 @@ void MainWindow::loadData(){
 
 void MainWindow::saveData(){
     QSettings data(QApplication::applicationDirPath() + "/data.ini", QSettings::IniFormat);
+    data.clear();
     data.beginGroup("common");
         data.setValue("windowSize", size());
         data.setValue("windowPosition", pos());
@@ -281,7 +305,6 @@ void MainWindow::saveData(){
             data.setValue("width", ui->studentsTable->columnWidth(i));
         }
         data.endArray();
-        data.remove("rows");
         data.beginWriteArray("rows");
         for(int i = 0; i < ui->studentsTable->rowCount() - 1; ++i){
             data.setArrayIndex(i);
@@ -290,8 +313,16 @@ void MainWindow::saveData(){
             data.setValue("surname", ui->studentsTable->item(i, 2)->text());
             QSpinBox* weight = dynamic_cast<QSpinBox*> ((ui->studentsTable->cellWidget(i, 3)));
             data.setValue("weight", weight->value());
+            data.beginWriteArray("workshops");
+                QString key = ui->studentsTable->item(i, 1)->text() + "_" + ui->studentsTable->item(i, 2)->text();
+                QList<QString> choice = studentsChoice.values(key);
+                qDebug() << key << choice;
+                for(int j = 0; j < choice.size(); ++j){
+                    data.setArrayIndex(j);
+                    data.setValue("chosen", choice.at(j));
+                }
+            data.endArray();
             /*
-            studentLabels.append("Workshops");
             studentLabels.append("Time");
             studentLabels.append("Relations");
             */

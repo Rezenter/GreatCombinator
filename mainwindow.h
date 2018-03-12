@@ -28,7 +28,7 @@ private:
     QPushButton* createNewStudent;
     QPushButton* createNewWorkshop;
     QDialog *SWDialog = new QDialog(this);
-    QList<QHash<QString, bool>> studentsChoice;
+    QHash<QString, QString> studentsChoice;
 };
 
 #endif // MAINWINDOW_H
