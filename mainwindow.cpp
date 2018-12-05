@@ -55,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent) :
         QObject::connect(workshops, &QPushButton::pressed, this, [=]{
             int editingRow = QObject::sender()->property("row").toInt();
             QString key = ui->studentsTable->item(editingRow, 1)->text() + "_" + ui->studentsTable->item(editingRow, 2)->text();
+            SWDialog->setWindowTitle("Assign/edit " + key + " workshops");
             QList<QString> choice = studentsChoice.values(key);
             for(int i = 0; i < SWUi.table->rowCount(); ++i){
                 SWUi.table->item(i, 1)->setText(ui->workshopTable->item(i, 1)->text());
@@ -72,10 +73,18 @@ MainWindow::MainWindow(QWidget *parent) :
         time->setText("edit");
         ui->studentsTable->setCellWidget(row, 5, time);
         QObject::connect(time, &QPushButton::pressed, this, [=]{
-            int editingRow = QObject::sender()->property("row").toInt();
-            //call dialog
-            //setText
-            time->setText("edited");
+            int editingRow = QObject::sender()->property("row").toInt(); //_____________________________________________________________________
+            QString key = ui->studentsTable->item(editingRow, 1)->text() + "_" + ui->studentsTable->item(editingRow, 2)->text();
+            STDialog->setWindowTitle("Assign/edit " + key + " free time");
+            QList<MainWindow::time> times = studentsTime.values(key);
+            for(int i = 0; i < times.length(); ++i){
+                STUi.dayComboBox->setCurrentText(times.at(i).day);
+                STUi.fromTimeEdit->setTime(times.at(i).from);
+                STUi.toTimeEdit->setTime(times.at(i).to);
+                STUi.addTimeButton->pressed();
+            }
+            STDialog->setProperty("row", editingRow);
+            STDialog->show();
         });
         QPushButton* relations = new QPushButton(ui->studentsTable);
         relations->setProperty("row", row);
@@ -100,7 +109,7 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->studentsTable->setCellWidget(row, 8, remove);
         QObject::connect(remove, &QPushButton::pressed, this, [=]{
             int removingRow = QObject::sender()->property("row").toInt();
-            ui->studentsTable->removeRow(removingRow);                                              //memory leak
+            ui->studentsTable->removeRow(removingRow);                                              //minor memory leak
             for(int i = removingRow; i < ui->studentsTable->rowCount() - 1; ++i){
                 ui->studentsTable->cellWidget(i, 8)->setProperty("row", i);
             }
@@ -159,7 +168,7 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->workshopTable->setCellWidget(row, 5, remove);
         QObject::connect(remove, &QPushButton::pressed, this, [=]{
             int removingRow = QObject::sender()->property("row").toInt();
-            ui->workshopTable->removeRow(removingRow);                                              //memory leak
+            ui->workshopTable->removeRow(removingRow);                                              //minor memory leak
             SWUi.table->removeRow(removingRow);
             for(int i = removingRow; i < ui->workshopTable->rowCount() - 1; ++i){
                 ui->workshopTable->cellWidget(i, 5)->setProperty("row", i);
@@ -197,6 +206,65 @@ MainWindow::MainWindow(QWidget *parent) :
         dynamic_cast<QPushButton*>(ui->studentsTable->cellWidget(row, 4))->setText("selected " + QString::number(j));
     });
 
+    //doubt
+    STUi.setupUi(STDialog);
+    STUi.table->setSelectionMode(QAbstractItemView::NoSelection);
+    QStringList STLabels;
+    STLabels.append("day");
+    STLabels.append("from");
+    STLabels.append("to");
+    STLabels.append("Del");
+    STUi.table->setColumnCount(STLabels.size());
+    STUi.table->setHorizontalHeaderLabels(STLabels);
+    pal = STUi.addTimeButton->palette();
+    pal.setColor(QPalette::Button, QColor(Qt::green));
+    STUi.addTimeButton->setAutoFillBackground(true);
+    STUi.addTimeButton->setPalette(pal);
+    QObject::connect(STUi.addTimeButton, &QPushButton::pressed, this, [=]{
+        int row = STUi.table->rowCount();
+        STUi.table->insertRow(row);
+        QTableWidgetItem* day = new QTableWidgetItem(STUi.dayComboBox->currentText());
+        day->setFlags(day->flags().setFlag(Qt::ItemIsEditable, false));
+        STUi.table->setItem(row, 0, day);
+        QTableWidgetItem* from = new QTableWidgetItem(STUi.fromTimeEdit->text());
+        from->setFlags(from->flags().setFlag(Qt::ItemIsEditable, false));
+        STUi.table->setItem(row, 1, from);
+        QTableWidgetItem* to = new QTableWidgetItem(STUi.toTimeEdit->text());
+        to->setFlags(to->flags().setFlag(Qt::ItemIsEditable, false));
+        STUi.table->setItem(row, 2, to);
+        QPushButton* remove = new QPushButton(STUi.table);
+        remove->setProperty("row", row);
+        remove->setText("Del");
+        QPalette pal = remove->palette();
+        pal.setColor(QPalette::Button, QColor(Qt::red));
+        remove->setAutoFillBackground(true);
+        remove->setPalette(pal);
+        STUi.table->setCellWidget(row, 3, remove);
+        QObject::connect(remove, &QPushButton::pressed, this, [=]{
+            int removingRow = QObject::sender()->property("row").toInt();
+            STUi.table->removeRow(removingRow);                                              //minor memory leak
+            for(int i = removingRow; i < STUi.table->rowCount(); ++i){
+                STUi.table->cellWidget(i, 3)->setProperty("row", i);
+            }
+        });
+
+    });
+    STDialog->setWindowTitle("Assign/edit students free time");
+    STDialog->setModal(true);
+    QObject::connect(STDialog, &QDialog::accepted, this, [=]{
+        int row = STDialog->property("row").toInt();
+        QString key = ui->studentsTable->item(row, 1)->text() + "_" + ui->studentsTable->item(row, 2)->text();
+        studentsTime.remove(key);
+        for(int i = 0; i < STUi.table->rowCount(); ++i){
+            MainWindow::time time;
+            time.day = STUi.table->item(i, 0)->text();
+            time.from = QTime::fromString(STUi.table->item(i, 1)->text(), "HH:mm");
+            time.to = QTime::fromString(STUi.table->item(i, 2)->text(), "HH:mm");
+            studentsTime.insertMulti(key, time);
+        }
+        dynamic_cast<QPushButton*>(ui->studentsTable->cellWidget(row, 5))->setText("selected " + QString::number(STUi.table->rowCount()));
+    });
+
     loadData();
 }
 
@@ -204,6 +272,7 @@ MainWindow::~MainWindow()
 {
     saveData();
     delete SWDialog;
+    delete STDialog;
     delete createNewStudent;
     delete createNewWorkshop;
     delete ui;
@@ -232,13 +301,24 @@ void MainWindow::loadData(){
             ui->studentsTable->item(i, 2)->setText(data.value("surname", "not loaded").toString());
             QSpinBox* weight = dynamic_cast<QSpinBox*> ((ui->studentsTable->cellWidget(i, 3)));
             weight->setValue(data.value("weight", 1).toInt());
+            QString key = ui->studentsTable->item(i, 1)->text() + "_" + ui->studentsTable->item(i, 2)->text();
             int choiceSize = data.beginReadArray("workshops");
-                QString key = ui->studentsTable->item(i, 1)->text() + "_" + ui->studentsTable->item(i, 2)->text();
                 for(int j = 0; j < choiceSize; ++j){
                     data.setArrayIndex(j);
                     studentsChoice.insertMulti(key, data.value("chosen", "not Loaded").toString());
                 }
                 dynamic_cast<QPushButton*>(ui->studentsTable->cellWidget(i, 4))->setText("selected " + QString::number(choiceSize));
+            data.endArray();
+            int timeSize = data.beginReadArray("times");
+                for(int j = 0; j < timeSize; ++j){
+                    data.setArrayIndex(j);
+                    MainWindow::time time;
+                    time.day = data.value("day", "not Loaded").toString();
+                    time.from = data.value("from", "00:00").toTime();
+                    time.to = data.value("to", "00:00").toTime();
+                    studentsTime.insertMulti(key, time);
+                }
+                dynamic_cast<QPushButton*>(ui->studentsTable->cellWidget(i, 5))->setText("selected " + QString::number(timeSize));
             data.endArray();
             /*
             studentLabels.append("Workshops");
@@ -263,6 +343,16 @@ void MainWindow::loadData(){
         for(int i = 0; i < columnCount; ++i){
             data.setArrayIndex(i);
             SWUi.table->setColumnWidth(i, data.value("width", 20). toInt());
+        }
+        data.endArray();
+    data.endGroup();
+    data.beginGroup("STDialog");
+        STDialog->resize(data.value("dialogSize", QSize(800, 600)).toSize());
+        STDialog->move(data.value("dialogPosition", QPoint(0, 0)).toPoint());
+        columnCount = data.beginReadArray("columns");
+        for(int i = 0; i < columnCount; ++i){
+            data.setArrayIndex(i);
+            STUi.table->setColumnWidth(i, data.value("width", 20). toInt());
         }
         data.endArray();
     data.endGroup();
@@ -313,13 +403,22 @@ void MainWindow::saveData(){
             data.setValue("surname", ui->studentsTable->item(i, 2)->text());
             QSpinBox* weight = dynamic_cast<QSpinBox*> ((ui->studentsTable->cellWidget(i, 3)));
             data.setValue("weight", weight->value());
+            QString key = ui->studentsTable->item(i, 1)->text() + "_" + ui->studentsTable->item(i, 2)->text();
             data.beginWriteArray("workshops");
-                QString key = ui->studentsTable->item(i, 1)->text() + "_" + ui->studentsTable->item(i, 2)->text();
                 QList<QString> choice = studentsChoice.values(key);
                 qDebug() << key << choice;
                 for(int j = 0; j < choice.size(); ++j){
                     data.setArrayIndex(j);
                     data.setValue("chosen", choice.at(j));
+                }
+            data.endArray();
+            data.beginWriteArray("times");
+                QList<MainWindow::time> times = studentsTime.values(key);
+                for(int j = 0; j < times.size(); ++j){
+                    data.setArrayIndex(j);
+                    data.setValue("day", times.at(j).day);
+                    data.setValue("from", times.at(j).from);
+                    data.setValue("to", times.at(j).to);
                 }
             data.endArray();
             /*
@@ -343,6 +442,16 @@ void MainWindow::saveData(){
         for(int i = 0; i < SWUi.table->columnCount(); ++i){
             data.setArrayIndex(i);
             data.setValue("width", SWUi.table->columnWidth(i));
+        }
+        data.endArray();
+    data.endGroup();
+    data.beginGroup("STDialog");
+        data.setValue("dialogSize", STDialog->size());
+        data.setValue("dialogPosition", STDialog->pos());
+        data.beginWriteArray("columns");
+        for(int i = 0; i < STUi.table->columnCount(); ++i){
+            data.setArrayIndex(i);
+            data.setValue("width", STUi.table->columnWidth(i));
         }
         data.endArray();
     data.endGroup();

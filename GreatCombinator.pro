@@ -26,12 +26,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    studentsworkshopdialog.cpp
+        studentsworkshopdialog.cpp \
+    studentstimedialog.cpp
 
 HEADERS += \
         mainwindow.h \
-    studentsworkshopdialog.h
+        studentsworkshopdialog.h \
+    studentstimedialog.h
 
 FORMS += \
         mainwindow.ui \
-    studentsworkshopdialog.ui
+        studentsworkshopdialog.ui \
+    studentstimedialog.ui
