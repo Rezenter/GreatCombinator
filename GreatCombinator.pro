@@ -27,14 +27,20 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
         studentsworkshopdialog.cpp \
-    studentstimedialog.cpp
+    studentstimedialog.cpp \
+    studentsrelationdialog.cpp \
+    workshoptimedialog.cpp
 
 HEADERS += \
         mainwindow.h \
         studentsworkshopdialog.h \
-    studentstimedialog.h
+    studentstimedialog.h \
+    studentsrelationdialog.h \
+    workshoptimedialog.h
 
 FORMS += \
         mainwindow.ui \
         studentsworkshopdialog.ui \
-    studentstimedialog.ui
+    studentstimedialog.ui \
+    studentsrelationdialog.ui \
+    workshoptimedialog.ui

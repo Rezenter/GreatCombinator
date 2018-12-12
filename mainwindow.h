@@ -4,9 +4,14 @@
 #include <QMainWindow>
 #include <QSettings>
 #include <QPushButton>
+#include <QRadioButton>
+#include <QButtonGroup>
 
 #include "ui_studentsworkshopdialog.h"
 #include "ui_studentstimedialog.h"
+#include "ui_studentsrelationdialog.h"
+#include "ui_workshoptimedialog.h"
+#include <QRandomGenerator>
 
 namespace Ui {
 class MainWindow;
@@ -26,9 +31,15 @@ private:
         QTime from;
         QTime to;
     };
+    struct relation{
+        QString target;
+        int rel;
+    };
     Ui::MainWindow *ui;
     Ui::StudentsWorkshopDialog SWUi;
     Ui::StudentsTimeDialog STUi;
+    Ui::StudentsRelationDialog SRUi;
+    Ui::WorkshopTimeDialog WTUi;
     QSettings data;
     void loadData();
     void saveData();
@@ -36,8 +47,14 @@ private:
     QPushButton* createNewWorkshop;
     QDialog *SWDialog = new QDialog(this);
     QDialog *STDialog = new QDialog(this);
+    QDialog *SRDialog = new QDialog(this);
+    QDialog *WTDialog = new QDialog(this);
     QHash<QString, QString> studentsChoice;
     QHash<QString, time> studentsTime;
+    QHash<QString, relation> studentsRelation;
+    QHash<QString, time> workshopsTime;
+    QRandomGenerator random;
+    bool compare(int a, int b);
 };
 
 #endif // MAINWINDOW_H
